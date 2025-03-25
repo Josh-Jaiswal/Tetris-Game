@@ -4,6 +4,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.IOException;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphVector;
+import java.awt.font.TextAttribute;
+import java.awt.FontFormatException;
 
 /**
  * The GameBoard class represents the main playing area of the Tetris game.
@@ -91,65 +97,53 @@ public class GameBoard extends JPanel implements ActionListener {
     
     /**
      * Handles the game timer events.
-     * This method is called automatically by the timer at regular intervals.
-     * It either creates a new piece if the previous one has landed,
-     * or moves the current piece down one line.
-     * 
-     * @param e The action event (not used)
+     * Each tick either drops the current piece or creates a new one.
+     * This is basically the heartbeat of our game.
      */
     public void actionPerformed(ActionEvent e) {
         if (isFallingFinished) {
-            // Previous piece has landed, create a new one
+            // Last piece landed, time for a new one
             isFallingFinished = false;
             newPiece();
         } else {
-            // Move current piece down one line
+            // Keep the current piece falling
             oneLineDown();
         }
     }
     
     /**
-     * Calculates the width of each square on the board based on the panel size.
-     * This allows the game to scale if the window size changes.
-     * 
-     * @return The width of each square in pixels
+     * Figures out how wide each block should be based on the window size.
+     * This way the game looks good even if you resize the window.
      */
     private int squareWidth() {
         return (int) getSize().getWidth() / BOARD_WIDTH;
     }
     
     /**
-     * Calculates the height of each square on the board based on the panel size.
-     * This allows the game to scale if the window size changes.
-     * 
-     * @return The height of each square in pixels
+     * Same as squareWidth() but for height - keeps everything proportional.
      */
     private int squareHeight() {
         return (int) getSize().getHeight() / BOARD_HEIGHT;
     }
     
     /**
-     * Gets the tetromino shape at a specific position on the board.
-     * 
-     * @param x The x-coordinate on the board
-     * @param y The y-coordinate on the board
-     * @return The tetromino shape at the specified position
+     * Checks what block is at a specific spot on the board.
+     * Kind of like checking what piece is at a specific square in chess.
      */
     private Shape.Tetrominoes shapeAt(int x, int y) {
         return board[(y * BOARD_WIDTH) + x];
     }
     
     /**
-     * Starts a new game.
-     * Initializes the game state, clears the board, creates the first piece,
-     * and starts the game timer.
+     * Kicks off a new game!
+     * Clears the board, resets the score, and gets everything moving.
      */
     public void start() {
         if (isPaused) {
             return;
         }
         
-        // Reset game state
+        // Fresh start - clean slate
         isFallingFinished = false;
         numLinesRemoved = 0;
         score = 0;
@@ -157,7 +151,7 @@ public class GameBoard extends JPanel implements ActionListener {
         clearBoard();
         newPiece();
         
-        // Set initial game speed and start the timer
+        // Get the blocks falling at the initial speed
         timer.setDelay(INIT_DELAY);
         timer.start();
         updateStatusBar();
@@ -178,24 +172,20 @@ public class GameBoard extends JPanel implements ActionListener {
     }
     
     /**
-     * Updates the status bar with current game information.
-     * Shows score, level, lines cleared, and active combo counter.
-     * 
-     * The status display is designed to be informative without being cluttered,
-     * giving players just enough information to track their progress.
+     * Updates the status bar with all the juicy game details.
+     * Shows your score, level, and any active combos.
      */
     private void updateStatusBar() {
         String statusText = "Score: " + score + " | Level: " + level + " | Lines: " + numLinesRemoved;
         
-        // Show combo counter when active
+        // Brag about your combo streak
         if (comboCounter > 1) {
             statusText += " | Combo: x" + comboCounter;
         }
         
-        // Show special message for perfect clear (briefly)
+        // Celebrate when you clear the whole board
         if (boardWasCleared) {
             statusText += " | PERFECT CLEAR!";
-            // Reset the flag after a short delay (would need a timer in a real implementation)
             boardWasCleared = false;
         }
         
@@ -252,8 +242,7 @@ public class GameBoard extends JPanel implements ActionListener {
             dropDistance++;
         }
         
-        // Award bonus points for hard drop based on distance
-        // This encourages using space bar for faster gameplay
+        // Bonus points for being decisive
         if (dropDistance > 0) {
             // 2 points per cell dropped - simple but effective formula
             score += dropDistance * 2;
@@ -264,18 +253,14 @@ public class GameBoard extends JPanel implements ActionListener {
     }
     
     /**
-     * Moves the current piece down by one line (soft drop).
-     * If the piece can't move down further, it's considered dropped.
-     * 
-     * This method adds a small bonus for manually dropping pieces,
-     * which encourages active play rather than waiting for pieces to fall.
+     * Moves the piece down one row - the 'D' key move.
+     * Not as dramatic as a hard drop, but gives you more control.
      */
     private void oneLineDown() {
         if (!tryMove(currentShape, currentX, currentY - 1)) {
             pieceDropped();
         } else {
-            // Small bonus for soft drop (1 point per cell)
-            // Less than hard drop to balance risk/reward
+            // Small bonus for manually dropping
             score += 1;
             updateStatusBar();
         }
@@ -319,81 +304,156 @@ public class GameBoard extends JPanel implements ActionListener {
      * The popup has a semi-transparent red background to clearly indicate the game has ended.
      */
     private void showGameOverPopup() {
-        // Create a custom dialog with semi-transparent red background
+        // Create a slick-looking dialog to show the bad news
         JDialog gameOverDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Game Over", true);
         gameOverDialog.setLayout(new BorderLayout());
-        gameOverDialog.setSize(300, 200);
+        gameOverDialog.setSize(350, 220);
         gameOverDialog.setLocationRelativeTo(this);
+        gameOverDialog.setUndecorated(true); // No boring window frame
         
-        // Create a custom panel with semi-transparent red background
+        // Load the Tektur fonts for the game over screen
+        Font titleFont = null;
+        Font headingFont = null;
+        Font buttonFont = null;
+        
+        try {
+            File boldFontFile = new File("c:\\Users\\joshj\\OneDrive\\Tetris\\Fonts\\Tektur-Bold.ttf");
+            File mediumFontFile = new File("c:\\Users\\joshj\\OneDrive\\Tetris\\Fonts\\Tektur-Medium.ttf");
+            
+            if (boldFontFile.exists() && mediumFontFile.exists()) {
+                titleFont = Font.createFont(Font.TRUETYPE_FONT, boldFontFile).deriveFont(36f);
+                headingFont = Font.createFont(Font.TRUETYPE_FONT, boldFontFile).deriveFont(20f);
+                buttonFont = Font.createFont(Font.TRUETYPE_FONT, mediumFontFile).deriveFont(16f);
+                
+                // Make the fonts available for the whole dialog
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                ge.registerFont(titleFont);
+                ge.registerFont(headingFont);
+                ge.registerFont(buttonFont);
+            } else {
+                // Fall back to boring system fonts if our cool ones aren't there
+                titleFont = new Font("Arial", Font.BOLD, 36);
+                headingFont = new Font("Arial", Font.BOLD, 20);
+                buttonFont = new Font("Arial", Font.BOLD, 16);
+            }
+        } catch (FontFormatException | IOException e) {
+            // Something went wrong with the fonts, use the defaults
+            titleFont = new Font("Arial", Font.BOLD, 36);
+            headingFont = new Font("Arial", Font.BOLD, 20);
+            buttonFont = new Font("Arial", Font.BOLD, 16);
+        }
+        
+        // Create a panel with a sweet gradient background
         JPanel panel = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2d = (Graphics2D) g.create();
-                g2d.setColor(new Color(200, 0, 0, 150)); // More transparent red
+                
+                // Make a cool red gradient that screams "game over"
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, new Color(120, 0, 0, 230),
+                    0, getHeight(), new Color(60, 0, 0, 230)
+                );
+                g2d.setPaint(gradient);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Add a subtle grid pattern for that retro game feel
+                g2d.setColor(new Color(140, 20, 20, 50));
+                int gridSize = 20;
+                for (int i = 0; i < getWidth(); i += gridSize) {
+                    g2d.drawLine(i, 0, i, getHeight());
+                }
+                for (int i = 0; i < getHeight(); i += gridSize) {
+                    g2d.drawLine(0, i, getWidth(), i);
+                }
+                
+                // Add a border to make it pop
+                g2d.setColor(new Color(200, 50, 50));
+                g2d.setStroke(new BasicStroke(3));
+                g2d.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
+                
                 g2d.dispose();
             }
         };
         panel.setOpaque(false);
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
-        // Create game over message with score and level information
+        // The big "GAME OVER" text
         JLabel gameOverLabel = new JLabel("GAME OVER");
-        gameOverLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        gameOverLabel.setFont(titleFont);
         gameOverLabel.setForeground(Color.WHITE);
         gameOverLabel.setHorizontalAlignment(JLabel.CENTER);
         
+        // Show off your final score
         JLabel scoreLabel = new JLabel("Final Score: " + score);
-        scoreLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        scoreLabel.setFont(headingFont);
         scoreLabel.setForeground(Color.WHITE);
         scoreLabel.setHorizontalAlignment(JLabel.CENTER);
         
+        // And what level you reached
         JLabel levelLabel = new JLabel("Level Reached: " + level);
-        levelLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        levelLabel.setFont(headingFont);
         levelLabel.setForeground(Color.WHITE);
         levelLabel.setHorizontalAlignment(JLabel.CENTER);
         
-        // Create a panel for the message labels
+        // Stack all the text nicely
         JPanel messagePanel = new JPanel();
         messagePanel.setLayout(new BoxLayout(messagePanel, BoxLayout.Y_AXIS));
         messagePanel.setOpaque(false);
         messagePanel.add(gameOverLabel);
-        messagePanel.add(Box.createVerticalStrut(10));
+        messagePanel.add(Box.createVerticalStrut(15));
         messagePanel.add(scoreLabel);
-        messagePanel.add(Box.createVerticalStrut(5));
+        messagePanel.add(Box.createVerticalStrut(8));
         messagePanel.add(levelLabel);
         
-        // Create buttons for restart and return to welcome screen
+        // Add buttons to play again or go back to the menu
         JPanel buttonPanel = new JPanel();
         buttonPanel.setOpaque(false);
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
         
-        JButton restartButton = new JButton("Play Again");
-        restartButton.setFont(new Font("Arial", Font.BOLD, 14));
+        // The "one more try" button
+        JButton restartButton = new JButton("PLAY AGAIN");
+        restartButton.setFont(buttonFont);
+        restartButton.setFocusPainted(false);
+        restartButton.setBackground(new Color(0, 150, 0));
+        restartButton.setForeground(Color.WHITE);
+        restartButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0, 200, 0), 2),
+            BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
         restartButton.addActionListener(e -> {
             gameOverDialog.dispose();
             start(); // Restart the game
         });
         
-        JButton welcomeButton = new JButton("Main Menu");
-        welcomeButton.setFont(new Font("Arial", Font.BOLD, 14));
+        // The "I need a break" button
+        JButton welcomeButton = new JButton("MAIN MENU");
+        welcomeButton.setFont(buttonFont);
+        welcomeButton.setFocusPainted(false);
+        welcomeButton.setBackground(new Color(50, 50, 50));
+        welcomeButton.setForeground(Color.WHITE);
+        welcomeButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
+            BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
         welcomeButton.addActionListener(e -> {
             gameOverDialog.dispose();
-            // Get the parent TetrisGame and show the welcome screen
+            // Head back to the welcome screen
             TetrisGame parent = (TetrisGame) SwingUtilities.getWindowAncestor(this);
             CardLayout cl = (CardLayout) getParent().getLayout();
             cl.show(getParent(), "welcome");
         });
         
         buttonPanel.add(restartButton);
+        buttonPanel.add(Box.createHorizontalStrut(15));
         buttonPanel.add(welcomeButton);
         
-        // Add components to the panel
+        // Put it all together
         panel.add(messagePanel, BorderLayout.CENTER);
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
-        // Add the panel to the dialog and display it
+        // Show the dialog
         gameOverDialog.add(panel);
         gameOverDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         gameOverDialog.setVisible(true);

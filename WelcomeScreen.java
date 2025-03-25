@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * The WelcomeScreen class displays an initial welcome message with game rules
@@ -9,6 +11,9 @@ import java.awt.event.ActionListener;
  */
 public class WelcomeScreen extends JPanel {
     private TetrisGame parentGame;
+    private Font titleFont;
+    private Font headingFont;
+    private Font bodyFont;
     
     /**
      * Constructor for the welcome screen.
@@ -18,13 +23,16 @@ public class WelcomeScreen extends JPanel {
     public WelcomeScreen(TetrisGame parent) {
         this.parentGame = parent;
         
+        // Load Tektur fonts
+        loadTekturFonts();
+        
         // Set up the panel layout
         setLayout(new BorderLayout());
         setBackground(new Color(40, 40, 40));
         
         // Create the title label
         JLabel titleLabel = new JLabel("TETRIS");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 48));
+        titleLabel.setFont(titleFont);
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(30, 0, 20, 0));
@@ -41,11 +49,15 @@ public class WelcomeScreen extends JPanel {
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 30, 0));
         
         // Create the start button
-        JButton startButton = new JButton("Start Game");
-        startButton.setFont(new Font("Arial", Font.BOLD, 18));
+        JButton startButton = new JButton("START GAME");
+        startButton.setFont(headingFont);
         startButton.setFocusPainted(false);
         startButton.setBackground(new Color(0, 150, 0));
         startButton.setForeground(Color.WHITE);
+        startButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0, 200, 0), 2),
+            BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
         startButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -58,8 +70,50 @@ public class WelcomeScreen extends JPanel {
         
         // Add components to the main panel
         add(titleLabel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER); // Add the scroll pane instead of content panel directly
+        add(scrollPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
+    }
+    
+    /**
+     * Loads Tektur fonts for the game UI.
+     * Falls back to system fonts if custom fonts cannot be loaded.
+     */
+    private void loadTekturFonts() {
+        try {
+            File boldFontFile = new File("c:\\Users\\joshj\\OneDrive\\Tetris\\Fonts\\Tektur-Bold.ttf");
+            File regularFontFile = new File("c:\\Users\\joshj\\OneDrive\\Tetris\\Fonts\\Tektur-Regular.ttf");
+            File mediumFontFile = new File("c:\\Users\\joshj\\OneDrive\\Tetris\\Fonts\\Tektur-Medium.ttf");
+            
+            if (boldFontFile.exists() && regularFontFile.exists()) {
+                titleFont = Font.createFont(Font.TRUETYPE_FONT, boldFontFile).deriveFont(48f);
+                headingFont = Font.createFont(Font.TRUETYPE_FONT, boldFontFile).deriveFont(18f);
+                
+                // Use medium weight for body text if available, otherwise use regular
+                if (mediumFontFile.exists()) {
+                    bodyFont = Font.createFont(Font.TRUETYPE_FONT, mediumFontFile).deriveFont(14f);
+                } else {
+                    bodyFont = Font.createFont(Font.TRUETYPE_FONT, regularFontFile).deriveFont(14f);
+                }
+                
+                // Register fonts with the graphics environment to make them available system-wide
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                ge.registerFont(titleFont);
+                ge.registerFont(headingFont);
+                ge.registerFont(bodyFont);
+            } else {
+                // Fallback to system fonts if Tektur fonts aren't found
+                System.out.println("Tektur fonts not found. Using system fonts instead.");
+                titleFont = new Font("Arial", Font.BOLD, 48);
+                headingFont = new Font("Arial", Font.BOLD, 18);
+                bodyFont = new Font("Arial", Font.PLAIN, 14);
+            }
+        } catch (FontFormatException | IOException e) {
+            System.err.println("Error loading Tektur fonts: " + e.getMessage());
+            // Fallback to system fonts
+            titleFont = new Font("Arial", Font.BOLD, 48);
+            headingFont = new Font("Arial", Font.BOLD, 18);
+            bodyFont = new Font("Arial", Font.PLAIN, 14);
+        }
     }
     
     /**
@@ -91,12 +145,12 @@ public class WelcomeScreen extends JPanel {
         
         // Scoring system
         addSection(panel, "Scoring System", 
-            "Single line: 40 × level\n" +
-            "Double line: 100 × level\n" +
-            "Triple line: 300 × level\n" +
-            "Tetris (4 lines): 1200 × level + 400 bonus\n\n" +
-            "Combo bonus: 50 × combo × level\n" +
-            "Perfect clear: 3000 × level\n" +
+            "Single line: 40 x level\n" +
+            "Double line: 100 x level\n" +
+            "Triple line: 300 x level\n" +
+            "Tetris (4 lines): 1200 x level + 400 bonus\n\n" +
+            "Combo bonus: 50 x combo x level\n" +
+            "Perfect clear: 3000 x level\n" +
             "Quick drop bonus: Up to 200 points");
         
         return panel;
@@ -112,7 +166,7 @@ public class WelcomeScreen extends JPanel {
     private void addSection(JPanel panel, String title, String content) {
         // Add section title
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setFont(headingFont);
         titleLabel.setForeground(new Color(255, 200, 0));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(titleLabel);
@@ -120,7 +174,7 @@ public class WelcomeScreen extends JPanel {
         
         // Add section content
         JTextArea contentArea = new JTextArea(content);
-        contentArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        contentArea.setFont(bodyFont);
         contentArea.setForeground(Color.WHITE);
         contentArea.setBackground(new Color(40, 40, 40));
         contentArea.setEditable(false);
