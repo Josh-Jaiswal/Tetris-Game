@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/68495339-b89e-4e36-bc50-8aa33fd2cd73)
+![image](https://github.com/user-attachments/assets/1a3ac5d9-c604-4c81-b122-e051187f44a5)
 # Java Tetris Game
 
 A simple Tetris game implementation in Java using Swing for the GUI.
